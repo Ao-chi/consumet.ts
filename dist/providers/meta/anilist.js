@@ -602,6 +602,7 @@ class Anilist extends models_1.AnimeParser {
             }
         };
         this.findAnime = async (title, season, startDate, malId, dub, anilistId, externalLinks) => {
+            console.log(title, season, startDate, malId, dub, anilistId, externalLinks, "data passed to findAnime funciton");
             var _b, _c, _d;
             title.english = (_b = title.english) !== null && _b !== void 0 ? _b : title.romaji;
             title.romaji = (_c = title.romaji) !== null && _c !== void 0 ? _c : title.english;
@@ -620,7 +621,7 @@ class Anilist extends models_1.AnimeParser {
         this.findAnimeSlug = async (title, season, startDate, malId, dub, anilistId, externalLinks) => {
             var _b, _c, _d;
             if (this.provider instanceof anify_1.default)
-                return (await this.provider.fetchAnimeInfo(anilistId)).episodes;
+                return (await this.provider.fetchAnimeInfo(anilistId)).episodes;console.log(this.provider instanceof anify_1.default, "from animeslug");
             const slug = title.replace(/[^0-9a-zA-Z]+/g, ' ');
             let possibleAnime;
             if (malId && !(this.provider instanceof crunchyroll_1.default || this.provider instanceof bilibili_1.default)) {
