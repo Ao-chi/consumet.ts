@@ -803,11 +803,6 @@ class Anilist extends models_1.AnimeParser {
             catch (error) {
                 return possibleProviderEpisodes;
             }
-<<<<<<< HEAD
-            console.log("the new episodelist", newEpisodeList);
-            return newEpisodeList;
-=======
->>>>>>> 214a0e790b1ac9d937308619d7520e255f200000
         };
         /**
          * @param page page number to search for (optional)
