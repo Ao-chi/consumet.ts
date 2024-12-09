@@ -8,7 +8,7 @@ class Gogoanime extends models_1.AnimeParser {
     constructor(customBaseURL, proxy, adapter) {
         super(...arguments);
         this.name = 'Gogoanime';
-        this.baseUrl = 'https://anitaku.pe';
+        this.baseUrl = 'https://anitaku.bz'; // Do not include a trailing forward slash.
         this.logo = 'https://play-lh.googleusercontent.com/MaGEiAEhNHAJXcXKzqTNgxqRmhuKB1rCUgb15UrN_mWUNRnLpO5T1qja64oRasO7mn0';
         this.classPath = 'ANIME.Gogoanime';
         this.ajaxUrl = 'https://ajax.gogocdn.net/ajax';
@@ -137,8 +137,8 @@ class Gogoanime extends models_1.AnimeParser {
                 switch (server) {
                     case models_1.StreamingServers.GogoCDN:
                         return {
-                            headers: { Referer: serverUrl.href },
-                            sources: await new extractors_1.GogoCDN(this.proxyConfig, this.adapter).extract(serverUrl),
+                            headers: { Referer: serverUrl.origin },
+                            ...(await new extractors_1.GogoCDN(this.proxyConfig, this.adapter).extract(serverUrl)),
                             download: downloadUrl ? downloadUrl : `https://${serverUrl.host}/download${serverUrl.search}`,
                         };
                     case models_1.StreamingServers.StreamSB:
@@ -151,18 +151,26 @@ class Gogoanime extends models_1.AnimeParser {
                             sources: await new extractors_1.StreamSB(this.proxyConfig, this.adapter).extract(serverUrl),
                             download: downloadUrl ? downloadUrl : `https://${serverUrl.host}/download${serverUrl.search}`,
                         };
+                    case models_1.StreamingServers.Mp4Upload:
+                        return {
+                            headers: {
+                                Referer: serverUrl.origin,
+                            },
+                            sources: await new extractors_1.Mp4Upload(this.proxyConfig, this.adapter).extract(serverUrl),
+                            download: downloadUrl ? downloadUrl : `https://${serverUrl.host}/download${serverUrl.search}`,
+                        };
                     case models_1.StreamingServers.StreamWish:
                         return {
                             headers: {
-                                Referer: serverUrl.href,
+                                Referer: serverUrl.origin,
                             },
-                            sources: await new extractors_1.StreamWish(this.proxyConfig, this.adapter).extract(serverUrl),
+                            ...(await new extractors_1.StreamWish(this.proxyConfig, this.adapter).extract(serverUrl)),
                             download: downloadUrl ? downloadUrl : `https://${serverUrl.host}/download${serverUrl.search}`,
                         };
                     default:
                         return {
-                            headers: { Referer: serverUrl.href },
-                            sources: await new extractors_1.GogoCDN(this.proxyConfig, this.adapter).extract(serverUrl),
+                            headers: { Referer: serverUrl.origin },
+                            ...(await new extractors_1.GogoCDN(this.proxyConfig, this.adapter).extract(serverUrl)),
                             download: downloadUrl ? downloadUrl : `https://${serverUrl.host}/download${serverUrl.search}`,
                         };
                 }
@@ -183,6 +191,9 @@ class Gogoanime extends models_1.AnimeParser {
                         break;
                     case models_1.StreamingServers.StreamWish:
                         serverUrl = new URL($('div.anime_video_body > div.anime_muti_link > ul > li.streamwish > a').attr('data-video'));
+                        break;
+                    case models_1.StreamingServers.Mp4Upload:
+                        serverUrl = new URL($('div.anime_video_body > div.anime_muti_link > ul > li.mp4upload > a').attr('data-video'));
                         break;
                     default:
                         serverUrl = new URL(`${$('#load_anime > div > div > iframe').attr('src')}`);
@@ -499,7 +510,7 @@ class Gogoanime extends models_1.AnimeParser {
 }
 // (async () => {
 //   const gogo = new Gogoanime();
-//   const search = await gogo.fetchEpisodeSources('jigokuraku-dub-episode-1');
+//   const search = await gogo.fetchEpisodeSources('jigokuraku-dub-episode-1',StreamingServers.StreamWish);
 //   console.log(search);
 // })();
 exports.default = Gogoanime;

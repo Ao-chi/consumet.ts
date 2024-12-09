@@ -55,7 +55,7 @@ class Anilist extends AnimeParser {
   protected override classPath = 'META.Anilist';
 
   private readonly anilistGraphqlUrl = 'https://graphql.anilist.co';
-  private readonly kitsuGraphqlUrl = 'https://kitsu.app/api/graphql';
+  private readonly kitsuGraphqlUrl = 'https://kitsu.io/api/graphql';
   private readonly malSyncUrl = 'https://api.malsync.moe';
   private readonly anifyUrl = ANIFY_URL;
   provider: AnimeParser;
@@ -109,13 +109,14 @@ class Anilist extends AnimeParser {
           data.data?.Page?.media?.map((item: any) => ({
             id: item.id.toString(),
             malId: item.idMal,
-            title:
-              {
-                romaji: item.title.romaji,
-                english: item.title.english,
-                native: item.title.native,
-                userPreferred: item.title.userPreferred,
-              } || item.title.romaji,
+            title: item.title
+              ? {
+                  romaji: item.title.romaji,
+                  english: item.title.english,
+                  native: item.title.native,
+                  userPreferred: item.title.userPreferred,
+                }
+              : item.title.romaji,
             status:
               item.status == 'RELEASING'
                 ? MediaStatus.ONGOING
@@ -262,13 +263,14 @@ class Anilist extends AnimeParser {
         ...(data.data?.Page?.media?.map((item: any) => ({
           id: item.id.toString(),
           malId: item.idMal,
-          title:
-            {
-              romaji: item.title.romaji,
-              english: item.title.english,
-              native: item.title.native,
-              userPreferred: item.title.userPreferred,
-            } || item.title.romaji,
+          title: item.title
+            ? {
+                romaji: item.title.romaji,
+                english: item.title.english,
+                native: item.title.native,
+                userPreferred: item.title.userPreferred,
+              }
+            : item.title.romaji,
           status:
             item.status == 'RELEASING'
               ? MediaStatus.ONGOING
@@ -289,7 +291,7 @@ class Anilist extends AnimeParser {
           coverHash: getHashFromImage(item.bannerImage),
           popularity: item.popularity,
           totalEpisodes: item.episodes ?? item.nextAiringEpisode?.episode - 1,
-          currentEpisode: item.nextAiringEpisode?.episode - 1 ?? item.episodes,
+          currentEpisode: item.nextAiringEpisode?.episode - 1 || item.episodes,
           countryOfOrigin: item.countryOfOrigin,
           description: item.description,
           genres: item.genres,
@@ -932,77 +934,80 @@ class Anilist extends AnimeParser {
     season?: string,
     startDate?: number
   ) => {
-    const kitsuEpisodes = await this.client.post(this.kitsuGraphqlUrl, options);
-    const episodesList = new Map();
-    if (kitsuEpisodes?.data.data) {
-      const { nodes } = kitsuEpisodes.data.data.searchAnimeByTitle;
+    try {
+      const kitsuEpisodes = await this.client.post(this.kitsuGraphqlUrl, options);
+      const episodesList = new Map();
+      if (kitsuEpisodes?.data.data) {
+        const { nodes } = kitsuEpisodes.data.data.searchAnimeByTitle;
 
-      if (nodes) {
-        nodes.forEach((node: any) => {
-          if (node.season === season && node.startDate.trim().split('-')[0] === startDate?.toString()) {
-            const episodes = node.episodes.nodes;
+        if (nodes) {
+          nodes.forEach((node: any) => {
+            if (node.season === season && node.startDate.trim().split('-')[0] === startDate?.toString()) {
+              const episodes = node.episodes.nodes;
 
-            for (const episode of episodes) {
-              const i = episode?.number.toString().replace(/"/g, '');
+              for (const episode of episodes) {
+                const i = episode?.number.toString().replace(/"/g, '');
 
-              let name = undefined;
-              let description = undefined;
-              let thumbnail = undefined;
+                let name = undefined;
+                let description = undefined;
+                let thumbnail = undefined;
 
-              let thumbnailHash = undefined;
+                let thumbnailHash = undefined;
 
-              if (episode?.description?.en)
-                description = episode?.description.en.toString().replace(/"/g, '').replace('\\n', '\n');
-              if (episode?.thumbnail) {
-                thumbnail = episode?.thumbnail.original.url.toString().replace(/"/g, '');
-                thumbnailHash = getHashFromImage(
-                  episode?.thumbnail.original.url.toString().replace(/"/g, '')
-                );
-              }
+                if (episode?.description?.en)
+                  description = episode?.description.en.toString().replace(/"/g, '').replace('\\n', '\n');
+                if (episode?.thumbnail) {
+                  thumbnail = episode?.thumbnail.original.url.toString().replace(/"/g, '');
+                  thumbnailHash = getHashFromImage(
+                    episode?.thumbnail.original.url.toString().replace(/"/g, '')
+                  );
+                }
 
-              if (episode) {
-                if (episode.titles?.canonical) name = episode.titles.canonical.toString().replace(/"/g, '');
+                if (episode) {
+                  if (episode.titles?.canonical) name = episode.titles.canonical.toString().replace(/"/g, '');
+                  episodesList.set(i, {
+                    episodeNum: episode?.number.toString().replace(/"/g, ''),
+                    title: name,
+                    description,
+                    createdAt: episode?.createdAt,
+                    thumbnail,
+                  });
+                  continue;
+                }
                 episodesList.set(i, {
-                  episodeNum: episode?.number.toString().replace(/"/g, ''),
-                  title: name,
-                  description,
-                  createdAt: episode?.createdAt,
+                  episodeNum: undefined,
+                  title: undefined,
+                  description: undefined,
+                  createdAt: undefined,
                   thumbnail,
+                  thumbnailHash,
                 });
-                continue;
               }
-              episodesList.set(i, {
-                episodeNum: undefined,
-                title: undefined,
-                description: undefined,
-                createdAt: undefined,
-                thumbnail,
-                thumbnailHash,
-              });
             }
-          }
+          });
+        }
+      }
+
+      const newEpisodeList: IAnimeEpisode[] = [];
+      if (possibleProviderEpisodes?.length !== 0) {
+        possibleProviderEpisodes?.forEach((ep: any, i: any) => {
+          const j = (i + 1).toString();
+          newEpisodeList.push({
+            id: ep.id as string,
+            title: ep.title ?? episodesList.get(j)?.title ?? null,
+            image: ep.image ?? episodesList.get(j)?.thumbnail ?? null,
+            imageHash: getHashFromImage(ep.image ?? episodesList.get(j)?.thumbnail ?? null),
+            number: ep.number as number,
+            createdAt: ep.createdAt ?? episodesList.get(j)?.createdAt ?? null,
+            description: ep.description ?? episodesList.get(j)?.description ?? null,
+            url: (ep.url as string) ?? null,
+          });
         });
       }
+      return newEpisodeList;
+    } catch (error) {
+      return possibleProviderEpisodes;
     }
-
-    const newEpisodeList: IAnimeEpisode[] = [];
-    if (possibleProviderEpisodes?.length !== 0) {
-      possibleProviderEpisodes?.forEach((ep: any, i: any) => {
-        const j = (i + 1).toString();
-        newEpisodeList.push({
-          id: ep.id as string,
-          title: ep.title ?? episodesList.get(j)?.title ?? null,
-          image: ep.image ?? episodesList.get(j)?.thumbnail ?? null,
-          imageHash: getHashFromImage(ep.image ?? episodesList.get(j)?.thumbnail ?? null),
-          number: ep.number as number,
-          createdAt: ep.createdAt ?? episodesList.get(j)?.createdAt ?? null,
-          description: ep.description ?? episodesList.get(j)?.description ?? null,
-          url: (ep.url as string) ?? null,
-        });
-      });
-    }
-
-    return newEpisodeList;
   };
 
   /**
@@ -1027,13 +1032,14 @@ class Anilist extends AnimeParser {
         results: data.data.Page.media.map((item: any) => ({
           id: item.id.toString(),
           malId: item.idMal,
-          title:
-            {
-              romaji: item.title.romaji,
-              english: item.title.english,
-              native: item.title.native,
-              userPreferred: item.title.userPreferred,
-            } || item.title.romaji,
+          title: item.title
+            ? {
+                romaji: item.title.romaji,
+                english: item.title.english,
+                native: item.title.native,
+                userPreferred: item.title.userPreferred,
+              }
+            : item.title.romaji,
           image: item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium,
           imageHash: getHashFromImage(
             item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium
@@ -1100,13 +1106,14 @@ class Anilist extends AnimeParser {
         results: data.data.Page.media.map((item: any) => ({
           id: item.id.toString(),
           malId: item.idMal,
-          title:
-            {
-              romaji: item.title.romaji,
-              english: item.title.english,
-              native: item.title.native,
-              userPreferred: item.title.userPreferred,
-            } || item.title.romaji,
+          title: item.title
+            ? {
+                romaji: item.title.romaji,
+                english: item.title.english,
+                native: item.title.native,
+                userPreferred: item.title.userPreferred,
+              }
+            : item.title.romaji,
           image: item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium,
           imageHash: getHashFromImage(
             item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium
@@ -1197,13 +1204,14 @@ class Anilist extends AnimeParser {
           malId: item.media.idMal,
           episode: item.episode,
           airingAt: item.airingAt,
-          title:
-            {
-              romaji: item.media.title.romaji,
-              english: item.media.title.english,
-              native: item.media.title.native,
-              userPreferred: item.media.title.userPreferred,
-            } || item.media.title.romaji,
+          title: item.media.title
+            ? {
+                romaji: item.media.title.romaji,
+                english: item.media.title.english,
+                native: item.media.title.native,
+                userPreferred: item.media.title.userPreferred,
+              }
+            : item.media.title.romaji,
           country: item.media.countryOfOrigin,
           image:
             item.media.coverImage.extraLarge ?? item.media.coverImage.large ?? item.media.coverImage.medium,
@@ -1263,13 +1271,14 @@ class Anilist extends AnimeParser {
         results: data.data.Page.media.map((item: any) => ({
           id: item.id.toString(),
           malId: item.idMal,
-          title:
-            {
-              romaji: item.title.romaji,
-              english: item.title.english,
-              native: item.title.native,
-              userPreferred: item.title.userPreferred,
-            } || item.title.romaji,
+          title: item.title
+            ? {
+                romaji: item.title.romaji,
+                english: item.title.english,
+                native: item.title.native,
+                userPreferred: item.title.userPreferred,
+              }
+            : item.title.romaji,
           image: item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium,
           imageHash: getHashFromImage(
             item.coverImage.extraLarge ?? item.coverImage.large ?? item.coverImage.medium
@@ -2057,13 +2066,14 @@ class Anilist extends AnimeParser {
             (item: any): IMangaResult => ({
               id: item.id.toString(),
               malId: item.idMal,
-              title:
-                {
-                  romaji: item.title.romaji,
-                  english: item.title.english,
-                  native: item.title.native,
-                  userPreferred: item.title.userPreferred,
-                } || item.title.romaji,
+              title: item.title
+                ? {
+                    romaji: item.title.romaji,
+                    english: item.title.english,
+                    native: item.title.native,
+                    userPreferred: item.title.userPreferred,
+                  }
+                : item.title.romaji,
               status:
                 item.status == 'RELEASING'
                   ? MediaStatus.ONGOING

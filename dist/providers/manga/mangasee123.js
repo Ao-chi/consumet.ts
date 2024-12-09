@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const cheerio_1 = require("cheerio");
 const domhandler_1 = require("domhandler");
 const models_1 = require("../../models");
+const axios_1 = __importDefault(require("axios"));
 class Mangasee123 extends models_1.MangaParser {
     constructor() {
         super(...arguments);
@@ -18,7 +22,7 @@ class Mangasee123 extends models_1.MangaParser {
             };
             const url = `${this.baseUrl}/manga`;
             try {
-                const { data } = await this.client.get(`${url}/${mangaId}`);
+                const { data } = await this._axios().get(`${url}/${mangaId}`);
                 const $ = (0, cheerio_1.load)(data);
                 const schemaScript = $('body > script:nth-child(15)').get()[0].children[0];
                 if ((0, domhandler_1.isText)(schemaScript)) {
@@ -48,6 +52,7 @@ class Mangasee123 extends models_1.MangaParser {
                 throw new Error(err.message);
             }
         };
+
         this.fetchChapterPages = async (chapterId, ...args) => {
             const images = [];
             const url = `${this.baseUrl}/read-online/${chapterId}-page-1.html`;
@@ -131,6 +136,17 @@ class Mangasee123 extends models_1.MangaParser {
             const pad = values[0].padStart(4, '0');
             return `${pad}.${values[1]}`;
         };
+        
+    }
+    
+    _axios() {
+        return axios_1.default.create({
+            baseURL: `https://goodproxy.goodproxy.workers.dev/fetch?url=${this.baseUrl}`,
+            headers: {
+                'User-Agent': 'Mozilla/5.0',
+                Referer:"https://mangasee123.com"
+            },
+        });
     }
 }
 // (async () => {

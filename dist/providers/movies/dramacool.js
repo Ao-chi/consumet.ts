@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const cheerio_1 = require("cheerio");
-const models_1 = require("../../models");
 const extractors_1 = require("../../extractors");
+const models_1 = require("../../models");
 class DramaCool extends models_1.MovieParser {
     constructor() {
         super(...arguments);
         this.name = 'DramaCool';
-        this.baseUrl = 'https://dramacool.com.pa';
+        this.baseUrl = 'https://asianc.co';
         this.logo = 'https://play-lh.googleusercontent.com/IaCb2JXII0OV611MQ-wSA8v_SAs9XF6E3TMDiuxGGXo4wp9bI60GtDASIqdERSTO5XU';
         this.classPath = 'MOVIES.DramaCool';
         this.supportedTypes = new Set([models_1.TvType.MOVIE, models_1.TvType.TVSERIES]);
@@ -92,7 +92,11 @@ class DramaCool extends models_1.MovieParser {
                     .map((i, el) => $(el).text().trim())
                     .get();
                 mediaInfo.image = $('div.details > div.img > img').attr('src');
-                mediaInfo.description = $('div.details div.info p:nth-child(6)').text();
+                mediaInfo.description = $('div.details div.info p:not(:has(*))')
+                    .map((i, el) => $(el).text().trim())
+                    .get()
+                    .join('\n\n')
+                    .trim();
                 mediaInfo.releaseDate = this.removeContainsFromString($('div.details div.info p:contains("Released:")').text(), 'Released');
                 mediaInfo.contentRating = this.removeContainsFromString($('div.details div.info p:contains("Content Rating:")').text(), 'Content Rating');
                 mediaInfo.airsOn = this.removeContainsFromString($('div.details div.info p:contains("Airs On:")').text(), 'Airs On');
@@ -153,6 +157,10 @@ class DramaCool extends models_1.MovieParser {
                     case models_1.StreamingServers.StreamSB:
                         return {
                             sources: await new extractors_1.StreamSB(this.proxyConfig, this.adapter).extract(serverUrl),
+                        };
+                    case models_1.StreamingServers.StreamWish:
+                        return {
+                            ...(await new extractors_1.StreamWish(this.proxyConfig, this.adapter).extract(serverUrl)),
                         };
                     default:
                         throw new Error('Server not supported');

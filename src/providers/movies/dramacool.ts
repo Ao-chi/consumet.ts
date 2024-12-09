@@ -1,22 +1,21 @@
 import { load } from 'cheerio';
-import { AxiosAdapter } from 'axios';
 
+import { AsianLoad, MixDrop, StreamSB, StreamTape, StreamWish } from '../../extractors';
 import {
-  MovieParser,
-  TvType,
-  IMovieInfo,
   IEpisodeServer,
-  StreamingServers,
-  ISource,
+  IMovieInfo,
   IMovieResult,
   ISearch,
+  ISource,
   MediaStatus,
+  MovieParser,
+  StreamingServers,
+  TvType,
 } from '../../models';
-import { MixDrop, AsianLoad, StreamTape, StreamSB } from '../../extractors';
 
 class DramaCool extends MovieParser {
   override readonly name = 'DramaCool';
-  protected override baseUrl = 'https://dramacool.com.pa';
+  protected override baseUrl = 'https://asianc.co';
   protected override logo =
     'https://play-lh.googleusercontent.com/IaCb2JXII0OV611MQ-wSA8v_SAs9XF6E3TMDiuxGGXo4wp9bI60GtDASIqdERSTO5XU';
   protected override classPath = 'MOVIES.DramaCool';
@@ -107,7 +106,11 @@ class DramaCool extends MovieParser {
         .map((i, el) => $(el).text().trim())
         .get();
       mediaInfo.image = $('div.details > div.img > img').attr('src');
-      mediaInfo.description = $('div.details div.info p:nth-child(6)').text();
+      mediaInfo.description = $('div.details div.info p:not(:has(*))')
+        .map((i, el) => $(el).text().trim())
+        .get()
+        .join('\n\n')
+        .trim();
       mediaInfo.releaseDate = this.removeContainsFromString(
         $('div.details div.info p:contains("Released:")').text(),
         'Released'
@@ -220,6 +223,10 @@ class DramaCool extends MovieParser {
         case StreamingServers.StreamSB:
           return {
             sources: await new StreamSB(this.proxyConfig, this.adapter).extract(serverUrl),
+          };
+        case StreamingServers.StreamWish:
+          return {
+            ...(await new StreamWish(this.proxyConfig, this.adapter).extract(serverUrl)),
           };
         default:
           throw new Error('Server not supported');

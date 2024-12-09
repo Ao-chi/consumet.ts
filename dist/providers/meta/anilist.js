@@ -31,7 +31,7 @@ class Anilist extends models_1.AnimeParser {
         this.logo = 'https://upload.wikimedia.org/wikipedia/commons/6/61/AniList_logo.svg';
         this.classPath = 'META.Anilist';
         this.anilistGraphqlUrl = 'https://graphql.anilist.co';
-        this.kitsuGraphqlUrl = 'https://kitsu.app/api/graphql';
+        this.kitsuGraphqlUrl = 'https://kitsu.io/api/graphql';
         this.malSyncUrl = 'https://api.malsync.moe';
         this.anifyUrl = utils_2.ANIFY_URL;
         /**
@@ -62,12 +62,14 @@ class Anilist extends models_1.AnimeParser {
                         return ({
                             id: item.id.toString(),
                             malId: item.idMal,
-                            title: {
-                                romaji: item.title.romaji,
-                                english: item.title.english,
-                                native: item.title.native,
-                                userPreferred: item.title.userPreferred,
-                            } || item.title.romaji,
+                            title: item.title
+                                ? {
+                                    romaji: item.title.romaji,
+                                    english: item.title.english,
+                                    native: item.title.native,
+                                    userPreferred: item.title.userPreferred,
+                                }
+                                : item.title.romaji,
                             status: item.status == 'RELEASING'
                                 ? models_1.MediaStatus.ONGOING
                                 : item.status == 'FINISHED'
@@ -195,16 +197,18 @@ class Anilist extends models_1.AnimeParser {
                     results: [],
                 };
                 res.results.push(...((_x = (_w = (_v = (_u = data.data) === null || _u === void 0 ? void 0 : _u.Page) === null || _v === void 0 ? void 0 : _v.media) === null || _w === void 0 ? void 0 : _w.map((item) => {
-                    var _b, _c, _d, _e, _f, _g, _h, _j, _k;
+                    var _b, _c, _d, _e, _f, _g, _h, _j;
                     return ({
                         id: item.id.toString(),
                         malId: item.idMal,
-                        title: {
-                            romaji: item.title.romaji,
-                            english: item.title.english,
-                            native: item.title.native,
-                            userPreferred: item.title.userPreferred,
-                        } || item.title.romaji,
+                        title: item.title
+                            ? {
+                                romaji: item.title.romaji,
+                                english: item.title.english,
+                                native: item.title.native,
+                                userPreferred: item.title.userPreferred,
+                            }
+                            : item.title.romaji,
                         status: item.status == 'RELEASING'
                             ? models_1.MediaStatus.ONGOING
                             : item.status == 'FINISHED'
@@ -222,12 +226,12 @@ class Anilist extends models_1.AnimeParser {
                         coverHash: (0, utils_2.getHashFromImage)(item.bannerImage),
                         popularity: item.popularity,
                         totalEpisodes: (_f = item.episodes) !== null && _f !== void 0 ? _f : ((_g = item.nextAiringEpisode) === null || _g === void 0 ? void 0 : _g.episode) - 1,
-                        currentEpisode: (_j = ((_h = item.nextAiringEpisode) === null || _h === void 0 ? void 0 : _h.episode) - 1) !== null && _j !== void 0 ? _j : item.episodes,
+                        currentEpisode: ((_h = item.nextAiringEpisode) === null || _h === void 0 ? void 0 : _h.episode) - 1 || item.episodes,
                         countryOfOrigin: item.countryOfOrigin,
                         description: item.description,
                         genres: item.genres,
                         rating: item.averageScore,
-                        color: (_k = item.coverImage) === null || _k === void 0 ? void 0 : _k.color,
+                        color: (_j = item.coverImage) === null || _j === void 0 ? void 0 : _j.color,
                         type: item.format,
                         releaseDate: item.seasonYear,
                     });
@@ -730,71 +734,80 @@ class Anilist extends models_1.AnimeParser {
             return newEpisodeList;
         };
         this.findKitsuAnime = async (possibleProviderEpisodes, options, season, startDate) => {
-            const kitsuEpisodes = await this.client.post(this.kitsuGraphqlUrl, options);
-            const episodesList = new Map();
-            if (kitsuEpisodes === null || kitsuEpisodes === void 0 ? void 0 : kitsuEpisodes.data.data) {
-                const { nodes } = kitsuEpisodes.data.data.searchAnimeByTitle;
-                if (nodes) {
-                    nodes.forEach((node) => {
-                        var _b, _c;
-                        if (node.season === season && node.startDate.trim().split('-')[0] === (startDate === null || startDate === void 0 ? void 0 : startDate.toString())) {
-                            const episodes = node.episodes.nodes;
-                            for (const episode of episodes) {
-                                const i = episode === null || episode === void 0 ? void 0 : episode.number.toString().replace(/"/g, '');
-                                let name = undefined;
-                                let description = undefined;
-                                let thumbnail = undefined;
-                                let thumbnailHash = undefined;
-                                if ((_b = episode === null || episode === void 0 ? void 0 : episode.description) === null || _b === void 0 ? void 0 : _b.en)
-                                    description = episode === null || episode === void 0 ? void 0 : episode.description.en.toString().replace(/"/g, '').replace('\\n', '\n');
-                                if (episode === null || episode === void 0 ? void 0 : episode.thumbnail) {
-                                    thumbnail = episode === null || episode === void 0 ? void 0 : episode.thumbnail.original.url.toString().replace(/"/g, '');
-                                    thumbnailHash = (0, utils_2.getHashFromImage)(episode === null || episode === void 0 ? void 0 : episode.thumbnail.original.url.toString().replace(/"/g, ''));
-                                }
-                                if (episode) {
-                                    if ((_c = episode.titles) === null || _c === void 0 ? void 0 : _c.canonical)
-                                        name = episode.titles.canonical.toString().replace(/"/g, '');
+            try {
+                const kitsuEpisodes = await this.client.post(this.kitsuGraphqlUrl, options);
+                const episodesList = new Map();
+                if (kitsuEpisodes === null || kitsuEpisodes === void 0 ? void 0 : kitsuEpisodes.data.data) {
+                    const { nodes } = kitsuEpisodes.data.data.searchAnimeByTitle;
+                    if (nodes) {
+                        nodes.forEach((node) => {
+                            var _b, _c;
+                            if (node.season === season && node.startDate.trim().split('-')[0] === (startDate === null || startDate === void 0 ? void 0 : startDate.toString())) {
+                                const episodes = node.episodes.nodes;
+                                for (const episode of episodes) {
+                                    const i = episode === null || episode === void 0 ? void 0 : episode.number.toString().replace(/"/g, '');
+                                    let name = undefined;
+                                    let description = undefined;
+                                    let thumbnail = undefined;
+                                    let thumbnailHash = undefined;
+                                    if ((_b = episode === null || episode === void 0 ? void 0 : episode.description) === null || _b === void 0 ? void 0 : _b.en)
+                                        description = episode === null || episode === void 0 ? void 0 : episode.description.en.toString().replace(/"/g, '').replace('\\n', '\n');
+                                    if (episode === null || episode === void 0 ? void 0 : episode.thumbnail) {
+                                        thumbnail = episode === null || episode === void 0 ? void 0 : episode.thumbnail.original.url.toString().replace(/"/g, '');
+                                        thumbnailHash = (0, utils_2.getHashFromImage)(episode === null || episode === void 0 ? void 0 : episode.thumbnail.original.url.toString().replace(/"/g, ''));
+                                    }
+                                    if (episode) {
+                                        if ((_c = episode.titles) === null || _c === void 0 ? void 0 : _c.canonical)
+                                            name = episode.titles.canonical.toString().replace(/"/g, '');
+                                        episodesList.set(i, {
+                                            episodeNum: episode === null || episode === void 0 ? void 0 : episode.number.toString().replace(/"/g, ''),
+                                            title: name,
+                                            description,
+                                            createdAt: episode === null || episode === void 0 ? void 0 : episode.createdAt,
+                                            thumbnail,
+                                        });
+                                        continue;
+                                    }
                                     episodesList.set(i, {
-                                        episodeNum: episode === null || episode === void 0 ? void 0 : episode.number.toString().replace(/"/g, ''),
-                                        title: name,
-                                        description,
-                                        createdAt: episode === null || episode === void 0 ? void 0 : episode.createdAt,
+                                        episodeNum: undefined,
+                                        title: undefined,
+                                        description: undefined,
+                                        createdAt: undefined,
                                         thumbnail,
+                                        thumbnailHash,
                                     });
-                                    continue;
                                 }
-                                episodesList.set(i, {
-                                    episodeNum: undefined,
-                                    title: undefined,
-                                    description: undefined,
-                                    createdAt: undefined,
-                                    thumbnail,
-                                    thumbnailHash,
-                                });
                             }
-                        }
+                        });
+                    }
+                }
+                const newEpisodeList = [];
+                if ((possibleProviderEpisodes === null || possibleProviderEpisodes === void 0 ? void 0 : possibleProviderEpisodes.length) !== 0) {
+                    possibleProviderEpisodes === null || possibleProviderEpisodes === void 0 ? void 0 : possibleProviderEpisodes.forEach((ep, i) => {
+                        var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
+                        const j = (i + 1).toString();
+                        newEpisodeList.push({
+                            id: ep.id,
+                            title: (_d = (_b = ep.title) !== null && _b !== void 0 ? _b : (_c = episodesList.get(j)) === null || _c === void 0 ? void 0 : _c.title) !== null && _d !== void 0 ? _d : null,
+                            image: (_g = (_e = ep.image) !== null && _e !== void 0 ? _e : (_f = episodesList.get(j)) === null || _f === void 0 ? void 0 : _f.thumbnail) !== null && _g !== void 0 ? _g : null,
+                            imageHash: (0, utils_2.getHashFromImage)((_k = (_h = ep.image) !== null && _h !== void 0 ? _h : (_j = episodesList.get(j)) === null || _j === void 0 ? void 0 : _j.thumbnail) !== null && _k !== void 0 ? _k : null),
+                            number: ep.number,
+                            createdAt: (_o = (_l = ep.createdAt) !== null && _l !== void 0 ? _l : (_m = episodesList.get(j)) === null || _m === void 0 ? void 0 : _m.createdAt) !== null && _o !== void 0 ? _o : null,
+                            description: (_r = (_p = ep.description) !== null && _p !== void 0 ? _p : (_q = episodesList.get(j)) === null || _q === void 0 ? void 0 : _q.description) !== null && _r !== void 0 ? _r : null,
+                            url: (_s = ep.url) !== null && _s !== void 0 ? _s : null,
+                        });
                     });
                 }
+                return newEpisodeList;
             }
-            const newEpisodeList = [];
-            if ((possibleProviderEpisodes === null || possibleProviderEpisodes === void 0 ? void 0 : possibleProviderEpisodes.length) !== 0) {
-                possibleProviderEpisodes === null || possibleProviderEpisodes === void 0 ? void 0 : possibleProviderEpisodes.forEach((ep, i) => {
-                    var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
-                    const j = (i + 1).toString();
-                    newEpisodeList.push({
-                        id: ep.id,
-                        title: (_d = (_b = ep.title) !== null && _b !== void 0 ? _b : (_c = episodesList.get(j)) === null || _c === void 0 ? void 0 : _c.title) !== null && _d !== void 0 ? _d : null,
-                        image: (_g = (_e = ep.image) !== null && _e !== void 0 ? _e : (_f = episodesList.get(j)) === null || _f === void 0 ? void 0 : _f.thumbnail) !== null && _g !== void 0 ? _g : null,
-                        imageHash: (0, utils_2.getHashFromImage)((_k = (_h = ep.image) !== null && _h !== void 0 ? _h : (_j = episodesList.get(j)) === null || _j === void 0 ? void 0 : _j.thumbnail) !== null && _k !== void 0 ? _k : null),
-                        number: ep.number,
-                        createdAt: (_o = (_l = ep.createdAt) !== null && _l !== void 0 ? _l : (_m = episodesList.get(j)) === null || _m === void 0 ? void 0 : _m.createdAt) !== null && _o !== void 0 ? _o : null,
-                        description: (_r = (_p = ep.description) !== null && _p !== void 0 ? _p : (_q = episodesList.get(j)) === null || _q === void 0 ? void 0 : _q.description) !== null && _r !== void 0 ? _r : null,
-                        url: (_s = ep.url) !== null && _s !== void 0 ? _s : null,
-                    });
-                });
+            catch (error) {
+                return possibleProviderEpisodes;
             }
+<<<<<<< HEAD
             console.log("the new episodelist", newEpisodeList);
             return newEpisodeList;
+=======
+>>>>>>> 214a0e790b1ac9d937308619d7520e255f200000
         };
         /**
          * @param page page number to search for (optional)
@@ -818,12 +831,14 @@ class Anilist extends models_1.AnimeParser {
                         return ({
                             id: item.id.toString(),
                             malId: item.idMal,
-                            title: {
-                                romaji: item.title.romaji,
-                                english: item.title.english,
-                                native: item.title.native,
-                                userPreferred: item.title.userPreferred,
-                            } || item.title.romaji,
+                            title: item.title
+                                ? {
+                                    romaji: item.title.romaji,
+                                    english: item.title.english,
+                                    native: item.title.native,
+                                    userPreferred: item.title.userPreferred,
+                                }
+                                : item.title.romaji,
                             image: (_c = (_b = item.coverImage.extraLarge) !== null && _b !== void 0 ? _b : item.coverImage.large) !== null && _c !== void 0 ? _c : item.coverImage.medium,
                             imageHash: (0, utils_2.getHashFromImage)((_e = (_d = item.coverImage.extraLarge) !== null && _d !== void 0 ? _d : item.coverImage.large) !== null && _e !== void 0 ? _e : item.coverImage.medium),
                             trailer: {
@@ -885,12 +900,14 @@ class Anilist extends models_1.AnimeParser {
                         return ({
                             id: item.id.toString(),
                             malId: item.idMal,
-                            title: {
-                                romaji: item.title.romaji,
-                                english: item.title.english,
-                                native: item.title.native,
-                                userPreferred: item.title.userPreferred,
-                            } || item.title.romaji,
+                            title: item.title
+                                ? {
+                                    romaji: item.title.romaji,
+                                    english: item.title.english,
+                                    native: item.title.native,
+                                    userPreferred: item.title.userPreferred,
+                                }
+                                : item.title.romaji,
                             image: (_c = (_b = item.coverImage.extraLarge) !== null && _b !== void 0 ? _b : item.coverImage.large) !== null && _c !== void 0 ? _c : item.coverImage.medium,
                             imageHash: (0, utils_2.getHashFromImage)((_e = (_d = item.coverImage.extraLarge) !== null && _d !== void 0 ? _d : item.coverImage.large) !== null && _e !== void 0 ? _e : item.coverImage.medium),
                             trailer: {
@@ -965,12 +982,14 @@ class Anilist extends models_1.AnimeParser {
                             malId: item.media.idMal,
                             episode: item.episode,
                             airingAt: item.airingAt,
-                            title: {
-                                romaji: item.media.title.romaji,
-                                english: item.media.title.english,
-                                native: item.media.title.native,
-                                userPreferred: item.media.title.userPreferred,
-                            } || item.media.title.romaji,
+                            title: item.media.title
+                                ? {
+                                    romaji: item.media.title.romaji,
+                                    english: item.media.title.english,
+                                    native: item.media.title.native,
+                                    userPreferred: item.media.title.userPreferred,
+                                }
+                                : item.media.title.romaji,
                             country: item.media.countryOfOrigin,
                             image: (_c = (_b = item.media.coverImage.extraLarge) !== null && _b !== void 0 ? _b : item.media.coverImage.large) !== null && _c !== void 0 ? _c : item.media.coverImage.medium,
                             imageHash: (0, utils_2.getHashFromImage)((_e = (_d = item.media.coverImage.extraLarge) !== null && _d !== void 0 ? _d : item.media.coverImage.large) !== null && _e !== void 0 ? _e : item.media.coverImage.medium),
@@ -1020,12 +1039,14 @@ class Anilist extends models_1.AnimeParser {
                         return ({
                             id: item.id.toString(),
                             malId: item.idMal,
-                            title: {
-                                romaji: item.title.romaji,
-                                english: item.title.english,
-                                native: item.title.native,
-                                userPreferred: item.title.userPreferred,
-                            } || item.title.romaji,
+                            title: item.title
+                                ? {
+                                    romaji: item.title.romaji,
+                                    english: item.title.english,
+                                    native: item.title.native,
+                                    userPreferred: item.title.userPreferred,
+                                }
+                                : item.title.romaji,
                             image: (_c = (_b = item.coverImage.extraLarge) !== null && _b !== void 0 ? _b : item.coverImage.large) !== null && _c !== void 0 ? _c : item.coverImage.medium,
                             imageHash: (0, utils_2.getHashFromImage)((_e = (_d = item.coverImage.extraLarge) !== null && _d !== void 0 ? _d : item.coverImage.large) !== null && _e !== void 0 ? _e : item.coverImage.medium),
                             trailer: {
@@ -1739,12 +1760,14 @@ Anilist.Manga = class Manga {
                         return ({
                             id: item.id.toString(),
                             malId: item.idMal,
-                            title: {
-                                romaji: item.title.romaji,
-                                english: item.title.english,
-                                native: item.title.native,
-                                userPreferred: item.title.userPreferred,
-                            } || item.title.romaji,
+                            title: item.title
+                                ? {
+                                    romaji: item.title.romaji,
+                                    english: item.title.english,
+                                    native: item.title.native,
+                                    userPreferred: item.title.userPreferred,
+                                }
+                                : item.title.romaji,
                             status: item.status == 'RELEASING'
                                 ? models_1.MediaStatus.ONGOING
                                 : item.status == 'FINISHED'
