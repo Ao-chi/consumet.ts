@@ -14,7 +14,22 @@ class MangaKakalot extends models_1.MangaParser {
                 id: mangaId,
                 title: '',
             };
-            const url = mangaId.includes('read') ? this.baseUrl : 'https://chapmanganato.to';
+            // const url = mangaId.includes('read') ? this.baseUrl : 'https://chapmanganato.to';
+            const getUrlForMangaId = (mangaId) => {
+                if (mangaId.startsWith('read-')) {
+                    // Matches `https://mangakakalot.com/read-zs6dh158504863965`
+                    return 'https://mangakakalot.com';
+                }
+                else if (mangaId.startsWith('manga-')) {
+                    // Matches `https://chapmanganato.to/manga-xa1001257`
+                    return 'https://chapmanganato.to';
+                }
+                else {
+                    // Default for `https://mangakakalot.com/manga/hk938077`
+                    return 'https://mangakakalot.com/manga';
+                }
+            };
+            const url = getUrlForMangaId(mangaId);
             try {
                 const { data } = await this.client.get(`${url}/${mangaId}`);
                 const $ = (0, cheerio_1.load)(data);
@@ -146,9 +161,11 @@ class MangaKakalot extends models_1.MangaParser {
                 const $ = (0, cheerio_1.load)(data);
                 const results = $('div.daily-update > div > div')
                     .map((i, el) => {
-                    var _a;
+                    var _a, _b, _c;
                     return ({
-                        id: (_a = $(el).find('div > h3 > a').attr('href')) === null || _a === void 0 ? void 0 : _a.split('/')[3],
+                        id: ((_a = $(el).find('div > h3 > a').attr('href')) === null || _a === void 0 ? void 0 : _a.split('/').includes('manga'))
+                            ? (_b = $(el).find('div > h3 > a').attr('href')) === null || _b === void 0 ? void 0 : _b.split('/').pop()
+                            : (_c = $(el).find('div > h3 > a').attr('href')) === null || _c === void 0 ? void 0 : _c.split('/')[3],
                         title: $(el).find('div > h3 > a').text(),
                         image: $(el).find('a > img').attr('src'),
                         headerForImage: { Referer: this.baseUrl },

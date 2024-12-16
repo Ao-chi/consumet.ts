@@ -21,7 +21,20 @@ class MangaKakalot extends MangaParser {
       id: mangaId,
       title: '',
     };
-    const url = mangaId.includes('read') ? this.baseUrl : 'https://chapmanganato.to';
+    // const url = mangaId.includes('read') ? this.baseUrl : 'https://chapmanganato.to';
+    const getUrlForMangaId = (mangaId) => {
+      if (mangaId.startsWith('read-')) {
+          // Matches `https://mangakakalot.com/read-zs6dh158504863965`
+          return 'https://mangakakalot.com';
+      } else if (mangaId.startsWith('manga-')) {
+          // Matches `https://chapmanganato.to/manga-xa1001257`
+          return 'https://chapmanganato.to';
+      } else {
+          // Default for `https://mangakakalot.com/manga/hk938077`
+          return 'https://mangakakalot.com/manga';
+      }
+    };
+    const url = getUrlForMangaId(mangaId)
     try {
       const { data } = await this.client.get(`${url}/${mangaId}`);
       const $ = load(data);
@@ -167,7 +180,9 @@ class MangaKakalot extends MangaParser {
       const results = $('div.daily-update > div > div')
         .map(
           (i, el): IMangaResult => ({
-            id: $(el).find('div > h3 > a').attr('href')?.split('/')[3]!,
+            id: $(el).find('div > h3 > a').attr('href')?.split('/').includes('manga') 
+            ? $(el).find('div > h3 > a').attr('href')?.split('/').pop() 
+            : $(el).find('div > h3 > a').attr('href')?.split('/')[3],
             title: $(el).find('div > h3 > a').text(),
             image: $(el).find('a > img').attr('src'),
             headerForImage: { Referer: this.baseUrl },

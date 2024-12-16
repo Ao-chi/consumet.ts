@@ -279,7 +279,6 @@ class Anilist extends models_1.AnimeParser {
          * @param fetchFiller to get filler boolean on the episode object (optional) set to `true` to get filler boolean on the episode object.
          */
         this.fetchAnimeInfo = async (id, dub = false, fetchFiller = false) => {
-            console.log("Received the dub param:", dub);
             var _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68, _69, _70, _71, _72, _73, _74, _75, _76, _77, _78, _79, _80, _81, _82;
             const animeInfo = {
                 id: id,
@@ -481,8 +480,7 @@ class Anilist extends models_1.AnimeParser {
                     !dub &&
                     (animeInfo.status === models_1.MediaStatus.ONGOING ||
                         (0, utils_1.range)({ from: 1940, to: new Date().getFullYear() + 1 }).includes(parseInt(animeInfo.releaseDate)))) {
-                            try {
-                        console.log("log me if the dub is false");
+                    try {
                         const anifyInfo = await new anify_1.default(this.proxyConfig, this.adapter, this.provider.name.toLowerCase()).fetchAnimeInfo(id);
                         animeInfo.mappings = anifyInfo.mappings;
                         animeInfo.artwork = anifyInfo.artwork;
@@ -548,7 +546,6 @@ class Anilist extends models_1.AnimeParser {
                         },
                         externalLinks: data.data.Media.externalLinks.filter((link) => link.type === 'STREAMING'),
                     }, dub, id);
-                    console.log("log me if the dub is true", id);
                 if (fetchFiller) {
                     const { data: fillerData } = await this.client.get(`https://raw.githubusercontent.com/saikou-app/mal-id-filler-list/main/fillers/${animeInfo.malId}.json`, { validateStatus: () => true });
                     if (!fillerData.toString().startsWith('404')) {
@@ -602,7 +599,6 @@ class Anilist extends models_1.AnimeParser {
             }
         };
         this.findAnime = async (title, season, startDate, malId, dub, anilistId, externalLinks) => {
-            console.log(title, season, startDate, malId, dub, anilistId, externalLinks, "data passed to findAnime funciton");
             var _b, _c, _d;
             title.english = (_b = title.english) !== null && _b !== void 0 ? _b : title.romaji;
             title.romaji = (_c = title.romaji) !== null && _c !== void 0 ? _c : title.english;
@@ -621,7 +617,7 @@ class Anilist extends models_1.AnimeParser {
         this.findAnimeSlug = async (title, season, startDate, malId, dub, anilistId, externalLinks) => {
             var _b, _c, _d;
             if (this.provider instanceof anify_1.default)
-                return (await this.provider.fetchAnimeInfo(anilistId)).episodes;console.log(this.provider instanceof anify_1.default, "from animeslug");
+                return (await this.provider.fetchAnimeInfo(anilistId)).episodes;
             const slug = title.replace(/[^0-9a-zA-Z]+/g, ' ');
             let possibleAnime;
             if (malId && !(this.provider instanceof crunchyroll_1.default || this.provider instanceof bilibili_1.default)) {
@@ -1203,8 +1199,6 @@ class Anilist extends models_1.AnimeParser {
             var _b, _c;
             let episodes = [];
             episodes = await this.findAnime({ english: (_b = Media.title) === null || _b === void 0 ? void 0 : _b.english, romaji: (_c = Media.title) === null || _c === void 0 ? void 0 : _c.romaji }, Media.season, Media.startDate.year, Media.idMal, dub, id, Media.externalLinks);
-
-            console.log("found anime from fetchDefaultEpisodeList");
             return episodes;
         };
         /**
@@ -1746,7 +1740,7 @@ Anilist.Manga = class Manga {
                 query: (0, utils_1.anilistSearchQuery)(query, page, perPage, 'MANGA'),
             };
             try {
-                const { data } = await axios_1.default.post(new _a().anilistGraphqlUrl, options);
+                const { data } = await axios_1.default.post(new Anilist().anilistGraphqlUrl, options);
                 const res = {
                     currentPage: data.data.Page.pageInfo.currentPage,
                     hasNextPage: data.data.Page.pageInfo.hasNextPage,
@@ -1819,7 +1813,7 @@ Anilist.Manga = class Manga {
                 query: (0, utils_1.anilistMediaDetailQuery)(id),
             };
             try {
-                const { data } = await axios_1.default.post(new _a().anilistGraphqlUrl, options).catch(err => {
+                const { data } = await axios_1.default.post(new Anilist().anilistGraphqlUrl, options).catch(err => {
                     throw new Error('Media not found');
                 });
                 mangaInfo.malId = data.data.Media.idMal;
@@ -1959,7 +1953,7 @@ Anilist.Manga = class Manga {
                         rating: item.node.meanScore,
                     });
                 });
-                mangaInfo.chapters = await new _a().findManga(this.provider, {
+                mangaInfo.chapters = await new Anilist().findManga(this.provider, {
                     english: mangaInfo.title.english,
                     romaji: mangaInfo.title.romaji,
                 }, mangaInfo.malId);
