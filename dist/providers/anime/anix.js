@@ -10,14 +10,33 @@ class Anix extends models_1.AnimeParser {
         this.baseUrl = 'https://anix.sh';
         this.logo = 'https://anix.sh/img/logo.png';
         this.classPath = 'ANIME.Anix';
-        this.defaultSort = `&type%5B%5D=1&type%5B%5D=5&type%5B%5D=3&type%5B%5D=4&type%5B%5D=2&type%5B%5D=7&status[]=${models_1.MediaStatus.ONGOING}&status[]=${models_1.MediaStatus.COMPLETED}`;
+        this.MediaCategory = {
+            MOVIE: 1,
+            TV: 2,
+            OVA: 3,
+            SPECIAL: 4,
+            ONA: 5,
+            TV_SPECIAL: 7,
+        };
+        this.MediaRegion = {
+            ANIME: 'country[]=1&country[]=2&country[]=3&country[]=4&country[]=6',
+            DONGHUA: 'country[]=5',
+        };
+        this.defaultSort = `&type[]=${this.MediaCategory.MOVIE}&type[]=${this.MediaCategory.TV}&type[]=${this.MediaCategory.ONA}&type[]=${this.MediaCategory.OVA}&type[]=${this.MediaCategory.SPECIAL}&type[]=${this.MediaCategory.TV_SPECIAL}&status[]=${models_1.MediaStatus.ONGOING}&status[]=${models_1.MediaStatus.COMPLETED}`;
         this.requestedWith = 'XMLHttpRequest';
         /**
          * @param page page number (optional)
          */
-        this.fetchRecentEpisodes = async (page = 1) => {
+        this.fetchRecentEpisodes = async (page = 1, type) => {
             try {
-                const res = await this.client.get(`${this.baseUrl}/filter?${this.defaultSort}&sort=recently_updated&page=${page}`);
+                let url = `${this.baseUrl}/filter?${this.defaultSort}&sort=recently_updated&page=${page}`;
+                if (type == 1) {
+                    url += `&${this.MediaRegion.ANIME}`;
+                }
+                else if (type == 2) {
+                    url += `&${this.MediaRegion.DONGHUA}`;
+                }
+                const res = await this.client.get(url);
                 const $ = (0, cheerio_1.load)(res.data);
                 const recentEpisodes = [];
                 $('.basic.ani.content-item .piece').each((i, el) => {
@@ -243,7 +262,6 @@ class Anix extends models_1.AnimeParser {
          * @param server Streaming server(optional)
          */
         this.fetchEpisodeSources = async (id, episodeId, server = models_1.StreamingServers.BuiltIn) => {
-            var _a;
             const url = `${this.baseUrl}/anime/${id}/${episodeId}`;
             const uri = new URL(url);
             const res = await this.client.get(url);
@@ -260,14 +278,13 @@ class Anix extends models_1.AnimeParser {
                         const streamUri = new URL(servers.get('Mp4upload'));
                         return {
                             headers: {
-                                Referer: uri.origin,
+                                Referer: streamUri.origin,
                             },
-                            ...(await new extractors_1.StreamWish(this.proxyConfig, this.adapter).extract(streamUri)),
+                            sources: await new extractors_1.Mp4Upload(this.proxyConfig, this.adapter).extract(streamUri),
                         };
                     }
                     throw new Error('Mp4Upload server not found');
                 case models_1.StreamingServers.StreamWish:
-                    const streamUrl = (_a = servers.get('Streamwish')) !== null && _a !== void 0 ? _a : undefined;
                     if (servers.get('Streamwish') != undefined) {
                         const streamUri = new URL(servers.get('Streamwish'));
                         return {
