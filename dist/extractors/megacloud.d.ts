@@ -5,15 +5,15 @@ declare class MegaCloud extends VideoExtractor {
     extract(videoUrl: URL): Promise<{
         sources: IVideo[];
         subtitles: ISubtitle[];
-        intro?: Intro;
-        outro?: Intro;
+        intro?: Intro | undefined;
+        outro?: Intro | undefined;
     }>;
     extractVariables(text: string): number[][];
     getSecret(encryptedString: string, values: number[][]): {
         secret: string;
         encryptedSource: string;
     };
-    decrypt(encrypted: string, keyOrSecret: string, maybe_iv?: string): string;
+    decrypt(encrypted: string, keyOrSecret: string, maybe_iv?: string): any;
     matchingKey(value: string, script: string): string;
 }
 export default MegaCloud;

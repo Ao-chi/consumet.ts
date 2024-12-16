@@ -1,16 +1,15 @@
 import { AnimeParser, ISearch, IAnimeInfo, IAnimeResult, ISource, IEpisodeServer } from '../../models';
-import { AxiosAdapter } from 'axios';
 import { ProxyConfig } from '../../models';
 type ProviderId = '9anime' | 'animepahe' | 'zoro' | 'gogoanime';
 declare class Anify extends AnimeParser {
     protected proxyConfig?: ProxyConfig | undefined;
-    protected adapter?: AxiosAdapter | undefined;
+    protected adapter?: any;
     protected providerId: ProviderId;
     readonly name = "Anify";
     protected baseUrl: string;
     protected classPath: string;
     private readonly actions;
-    constructor(proxyConfig?: ProxyConfig | undefined, adapter?: AxiosAdapter | undefined, providerId?: ProviderId);
+    constructor(proxyConfig?: ProxyConfig | undefined, adapter?: any, providerId?: ProviderId);
     /**
      * @param query Search query
      * @param page Page number (optional)
@@ -29,7 +28,7 @@ declare class Anify extends AnimeParser {
     /**
      * @param id anilist id
      */
-    fetchAnimeInfoByAnilistId: (id: string, providerId?: "9anime" | "animepahe" | "zoro" | "gogoanime") => Promise<IAnimeInfo>;
+    fetchAnimeInfoByAnilistId: (id: string, providerId?: '9anime' | 'animepahe' | 'zoro' | 'gogoanime') => Promise<IAnimeInfo>;
     fetchEpisodeSources: (episodeId: string, episodeNumber: number, id: number) => Promise<ISource>;
     /**
      * @deprecated
