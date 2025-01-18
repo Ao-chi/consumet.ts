@@ -128,9 +128,26 @@ class MangaKakalot extends models_1.MangaParser {
         };
         this.fetchChapterPages = async (chapterId, mangaId) => {
             try {
-                const url = chapterId.includes('$$READMANGANATO')
-                    ? `${this.baseUrl}/chapter/${chapterId}`
-                    : `https://chapmanganato.to/${mangaId}/${chapterId}`;
+                const getUrlForMangaId = (mangaId) => {
+                    if (mangaId.startsWith('read-')) {
+                        // Matches `https://mangakakalot.com/read-zs6dh158504863965`
+                        return `https://mangakakalot.com/chapter/${mangaId}/${chapterId}`;
+                    }
+                    else if (mangaId.startsWith('manga-')) {
+                        // Matches `https://chapmanganato.to/manga-xa1001257`
+                        return `https://chapmanganato.to/${mangaId}/${chapterId}`;
+                    }
+                    else {
+                        // Default for `https://mangakakalot.com/manga/hk938077`
+                        console.log("default url used");
+                        let updatedChapterId = chapterId.replace("-", "_");
+                        return `https://mangakakalot.com/chapter/${mangaId}/${updatedChapterId}`;
+                    }
+                };
+                const url = getUrlForMangaId(mangaId);
+                // const url = chapterId.includes('$$READMANGANATO')
+                //   ? `${this.baseUrl}/chapter/${chapterId}`
+                //   : `https://chapmanganato.to/${mangaId}/${chapterId}`;
                 const { data } = await this.client.get(url);
                 const $ = (0, cheerio_1.load)(data);
                 const pages = $('div.container-chapter-reader > img')
