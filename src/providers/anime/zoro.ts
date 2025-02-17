@@ -12,6 +12,7 @@ import {
   MediaFormat,
   SubOrSub,
   IAnimeEpisode,
+  MediaStatus,
 } from '../../models';
 
 import { StreamSB, RapidCloud, MegaCloud, StreamTape } from '../../utils';
@@ -432,6 +433,49 @@ class Zoro extends AnimeParser {
         info.subOrDub = SubOrSub.BOTH;
       }
 
+      // ZORO - PAGE INFO
+      const zInfo = await this.client.get(info.url);
+      const $$$ = load(zInfo.data);
+
+      info.genres = [];
+      $$$('.item.item-list')
+        .find('a')
+        .each(function () {
+          const genre = $(this).text().trim();
+          if (genre != undefined) info.genres?.push(genre);
+        });
+
+      switch (
+        $$$('.item.item-title').find("span.item-head:contains('Status')").next('span.name').text().trim()
+      ) {
+        case 'Finished Airing':
+          info.status = MediaStatus.COMPLETED;
+          break;
+        case 'Currently Airing':
+          info.status = MediaStatus.ONGOING;
+          break;
+        case 'Not yet aired':
+          info.status = MediaStatus.NOT_YET_AIRED;
+          break;
+        default:
+          info.status = MediaStatus.UNKNOWN;
+          break;
+      }
+
+      info.season = $$$('.item.item-title')
+        .find("span.item-head:contains('Premiered')")
+        .next('span.name')
+        .text()
+        .trim();
+
+      if (info.japaneseTitle == '' || info.japaneseTitle == undefined) {
+        info.japaneseTitle = $$$('.item.item-title')
+          .find("span.item-head:contains('Japanese')")
+          .next('span.name')
+          .text()
+          .trim();
+      }
+
       const episodesAjax = await this.client.get(
         `${this.baseUrl}/ajax/v2/episode/list/${id.split('-').pop()}`,
         {
@@ -447,21 +491,23 @@ class Zoro extends AnimeParser {
       info.totalEpisodes = $$('div.detail-infor-content > div > a').length;
       info.episodes = [];
       $$('div.detail-infor-content > div > a').each((i, el) => {
-        const episodeId = $$(el)
-          .attr('href')
-          ?.split('/')[2]
-          ?.replace('?ep=', '$episode$')
-          ?.concat(`$${info.subOrDub}`)!;
+        const episodeId = $$(el).attr('href')?.split('/')[2]?.replace('?ep=', '$episode$')!;
         const number = parseInt($$(el).attr('data-number')!);
         const title = $$(el).attr('title');
         const url = this.baseUrl + $$(el).attr('href');
         const isFiller = $$(el).hasClass('ssl-item-filler');
+        const isSubbed =
+          number <= (parseInt($('div.film-stats div.tick div.tick-item.tick-sub').text().trim()) || 0);
+        const isDubbed =
+          number <= (parseInt($('div.film-stats div.tick div.tick-item.tick-dub').text().trim()) || 0);
 
         info.episodes?.push({
           id: episodeId,
           number: number,
           title: title,
           isFiller: isFiller,
+          isSubbed: isSubbed,
+          isDubbed: isDubbed,
           url: url,
         });
       });
@@ -475,10 +521,13 @@ class Zoro extends AnimeParser {
   /**
    *
    * @param episodeId Episode id
+   * @param server server type (default `VidCloud`) (optional)
+   * @param subOrDub sub or dub (default `SubOrSub.SUB`) (optional)
    */
   override fetchEpisodeSources = async (
     episodeId: string,
-    server: StreamingServers = StreamingServers.VidCloud
+    server: StreamingServers = StreamingServers.VidCloud,
+    subOrDub: SubOrSub = SubOrSub.SUB
   ): Promise<ISource> => {
     if (episodeId.startsWith('http')) {
       const serverUrl = new URL(episodeId);
@@ -486,7 +535,7 @@ class Zoro extends AnimeParser {
         case StreamingServers.VidStreaming:
         case StreamingServers.VidCloud:
           return {
-            ...(await new MegaCloud().extract(serverUrl)),
+            ...(await new MegaCloud().extract(serverUrl, this.baseUrl)),
           };
         case StreamingServers.StreamSB:
           return {
@@ -506,16 +555,17 @@ class Zoro extends AnimeParser {
         case StreamingServers.VidCloud:
           return {
             headers: { Referer: serverUrl.href },
-            ...(await new MegaCloud().extract(serverUrl)),
+            ...(await new MegaCloud().extract(serverUrl, this.baseUrl)),
           };
       }
     }
     if (!episodeId.includes('$episode$')) throw new Error('Invalid episode id');
 
+    // keeping this for future use
     // Fallback to using sub if no info found in case of compatibility
 
     // TODO: add both options later
-    const subOrDub: 'sub' | 'dub' = episodeId.split('$')?.pop() === 'dub' ? 'dub' : 'sub';
+    // subOrDub = episodeId.split('$')?.pop() === 'dub' ? 'dub' : 'sub';
 
     episodeId = `${this.baseUrl}/watch/${episodeId
       .replace('$episode$', '?ep=')
@@ -568,7 +618,7 @@ class Zoro extends AnimeParser {
         data: { link },
       } = await this.client.get(`${this.baseUrl}/ajax/v2/episode/sources?id=${serverId}`);
 
-      return await this.fetchEpisodeSources(link, server);
+      return await this.fetchEpisodeSources(link, server, SubOrSub.SUB);
     } catch (err) {
       throw err;
     }
@@ -587,12 +637,12 @@ class Zoro extends AnimeParser {
     }
   };
 
-  private retrieveServerId = ($: any, index: number, subOrDub: 'sub' | 'dub') => {
+  private retrieveServerId = ($: any, index: number, subOrDub: SubOrSub) => {
     const rawOrSubOrDub = (raw: boolean) =>
       $(`.ps_-block.ps_-block-sub.servers-${raw ? 'raw' : subOrDub} > .ps__-list .server-item`)
-          .map((i: any, el: any) => ($(el).attr('data-server-id') == `${index}` ? $(el) : null))
-          .get()[0]
-          .attr('data-id');
+        .map((i: any, el: any) => ($(el).attr('data-server-id') == `${index}` ? $(el) : null))
+        .get()[0]
+        .attr('data-id');
     try {
       // Attempt to get the subOrDub ID
       return rawOrSubOrDub(false);
@@ -689,10 +739,9 @@ class Zoro extends AnimeParser {
 // (async () => {
 //   const zoro = new Zoro();
 //   const anime = await zoro.search('Dandadan');
-//   const info = await zoro.fetchAnimeInfo(anime.results[0].id);
-//   console.log(info.episodes)
-//   const sources = await zoro.fetchEpisodeSources(info.episodes![0].id);
-//   console.log(sources);
+//   const info = await zoro.fetchAnimeInfo('solo-leveling-season-2-arise-from-the-shadow-19413');
+//   console.log(info.episodes);
+//   const sources = await zoro.fetchEpisodeSources("solo-leveling-season-2-arise-from-the-shadow-19413$episode$131394$dub", StreamingServers.VidCloud,SubOrSub.DUB);
 // })();
 
 export default Zoro;
