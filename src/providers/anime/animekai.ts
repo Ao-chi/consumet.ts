@@ -457,11 +457,13 @@ class AnimeKai extends AnimeParser {
           return {
             headers: { Referer: serverUrl.href },
             ...(await new MegaUp(this.proxyConfig, this.adapter).extract(serverUrl)),
+            download: serverUrl.href.replace(/\/e\//, '/download/'),
           };
         default:
           return {
             headers: { Referer: serverUrl.href },
             ...(await new MegaUp(this.proxyConfig, this.adapter).extract(serverUrl)),
+            download: serverUrl.href.replace(/\/e\//, '/download/'),
           };
       }
     }
@@ -589,7 +591,7 @@ class AnimeKai extends AnimeParser {
           );
           const decodedData = JSON.parse(DecodeIframeData(data.result));
           servers.push({
-            name: `MegaUp ${$(server).text().trim()}`!, //megaup is the only server for now
+            name: `MegaUp ${$(server).text().trim()}`.toLowerCase()!, //megaup is the only server for now
             url: decodedData.url,
             intro: {
               start: decodedData?.skip.intro[0],
@@ -627,13 +629,13 @@ class AnimeKai extends AnimeParser {
   }
 }
 
-// (async () => {
-//   const animekai = new AnimeKai();
-//   const anime = await animekai.search('dandadan');
-//   const info = await animekai.fetchAnimeInfo('solo-leveling-season-2-arise-from-the-shadow-x7rq');
-//     console.log(info.episodes);
-//   const sources = await animekai.fetchEpisodeSources(info?.episodes![0].id!);
-//   console.log(sources);
-// })();
+//(async () => {
+//  const animekai = new AnimeKai();
+//  const anime = await animekai.search('dandadan');
+//  const info = await animekai.fetchAnimeInfo('solo-leveling-season-2-arise-from-the-shadow-x7rq');
+//  console.log(info.episodes);
+//  const sources = await animekai.fetchEpisodeSources(info?.episodes![0].id!);
+//  console.log(sources);
+//})();
 
 export default AnimeKai;
